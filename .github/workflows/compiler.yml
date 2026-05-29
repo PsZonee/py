@@ -1,0 +1,172 @@
+name: Custom WebIntoApp Cloud Compiler Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Give your App a name'
+        required: true
+        default: 'MomuBloom'
+      package_name:
+        description: 'Package Name (Play Store ID)'
+        required: true
+        default: 'com.masarpstudio.momubloom'
+      app_url:
+        description: 'Web App URL to Wrap (e.g. your GitHub Pages link)'
+        required: true
+        default: 'https://pszonee.github.io/MomuBloomm/'
+      orientation:
+        description: 'Default Screen Orientation Mode'
+        required: true
+        default: 'portrait'
+        type: choice
+        options:
+          - portrait
+          - landscape
+          - sensor
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository Framework
+      uses: actions/checkout@v4
+
+    - name: Configure Java JDK 17 Environment
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Dynamically Generate Clean Android Project Files
+      run: |
+        # Map out package namespaces inside system paths
+        PACKAGE_PATH=$(echo "${{ github.event.inputs.package_name }}" | sed 's/\./\//g')
+        mkdir -p app/src/main/java/$PACKAGE_PATH
+        mkdir -p app/src/main/res/mipmap
+
+        # 1. Structure Settings Registry
+        echo "rootProject.name = '${{ github.event.inputs.app_name }}'" > settings.gradle
+        echo "include ':app'" >> settings.gradle
+
+        # 2. Build Root Dependencies Compiler Manifest
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+
+        # 3. App Core Module Configurations
+        cat << 'EOF' > app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            compileSdk 34
+            namespace "${{ github.event.inputs.package_name }}"
+            defaultConfig {
+                applicationId "${{ github.event.inputs.package_name }}"
+                minSdk 24
+                targetSdk 34
+                versionCode 3
+                versionName "3.0"
+            }
+            buildTypes {
+                release {
+                    minifyEnabled false
+                }
+            }
+        }
+        EOF
+
+        # 4. System Application AndroidManifest
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <application
+                android:allowBackup="true"
+                android:label="${{ github.event.inputs.app_name }}"
+                android:icon="@mipmap/ic_launcher"
+                android:hardwareAccelerated="true"
+                android:supportsRtl="true"
+                android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:screenOrientation="${{ github.event.inputs.orientation }}"
+                    android:configChanges="orientation|screenSize|keyboardHidden|screenLayout">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        # 5. Core Native Immersive WebView Engine Blueprint
+        cat << 'EOF' > app/src/main/java/MainActivity.template
+        package ${{ github.event.inputs.package_name }};
+        import android.app.Activity;
+        import android.os.Bundle;
+        import android.view.View;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+
+        public class MainActivity extends Activity {
+            private WebView mWebView;
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN
+                );
+                mWebView = new WebView(this);
+                setContentView(mWebView);
+                WebSettings settings = mWebView.getSettings();
+                settings.setJavaScriptEnabled(true);
+                settings.setDomStorageEnabled(true);
+                settings.setDatabaseEnabled(true);
+                settings.setAllowFileAccess(true);
+                settings.setAllowContentAccess(true);
+                settings.setLoadWithOverviewMode(true);
+                settings.setUseWideViewPort(true);
+                mWebView.setWebViewClient(new WebViewClient());
+                mWebView.loadUrl("${{ github.event.inputs.app_url }}");
+            }
+            @Override
+            public void onBackPressed() {
+                if (mWebView.canGoBack()) { mWebView.goBack(); } else { super.onBackPressed(); }
+            }
+        }
+        EOF
+        mv app/src/main/java/MainActivity.template app/src/main/java/$PACKAGE_PATH/MainActivity.java
+
+        # 6. Inject fallback functional 1x1 asset icon frame
+        echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" | base64 -d > app/src/main/res/mipmap/ic_launcher.png
+
+    - name: Generate Local Gradle Compiler System Wrapper
+      run: gradle wrapper --gradle-version 8.2.2
+
+    - name: Compile Android Native Release Formats
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug assembleRelease bundleRelease
+
+    - name: Export Ready APK (Instant install file for phone testing)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.inputs.app_name }}-Testing-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Export Ready AAB (Production file for Google Play Console)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.inputs.app_name }}-PlayStore-Bundle-AAB
+        path: app/build/outputs/bundle/release/app-release.aab
